@@ -97,7 +97,7 @@ public class SubscribeController {
                         subscription.getExpirationDate(),
                         subscription.getPlan());
                 int status = sendTokenToHaproxy(token.toString());
-                if(status != 200) {
+                if(status == 0) {
                     token.setPlan(token.getPlan()+": Error registering token. Contact support!");
                 }
                 return token;
