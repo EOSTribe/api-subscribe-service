@@ -88,7 +88,7 @@ public class SubscribeController {
             String info = account + "." + secret;
             Sha256 digest = Sha256.from(info.getBytes());
             EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
-            Subscription subscription = createSubscription(account, transId, secret, signature.toString(),
+            Subscription subscription = createSubscription(account, transId, signature.toString(),
                     transaction.getQuantity(), transaction.getMemo());
             repository.add(subscription);
             Token token = new Token(signature.toString(), subscription.getExpirationDate());
@@ -100,17 +100,16 @@ public class SubscribeController {
 
     private Subscription createSubscription(String account,
                                             String transaction,
-                                            String secret,
                                             String token,
                                             Float amount,
                                             String memo) {
         Subscription subscription = new Subscription();
         subscription.setAccount(account);
         subscription.setTransaction(transaction);
-        subscription.setSecret(secret);
         subscription.setToken(token);
         subscription.setEosPaid(amount);
         subscription.setMemo(memo);
+        subscription.setStatus(1);
         String plan = L1;
         if(memo.contains(L3)) {
             plan = L3;

@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     token VARCHAR(255) NOT NULL,
     transaction VARCHAR(255) NOT NULL,
     account VARCHAR(12) NOT NULL,
-    secret VARCHAR(20) NOT NULL,
     issue_date DATE NOT NULL,
     expiration_date DATE NOT NULL,
     plan VARCHAR(2) NOT NULL,

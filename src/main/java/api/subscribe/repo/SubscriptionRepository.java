@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 public class SubscriptionRepository {
 
     private static final String GET_BY_TOKEN_SQL = "SELECT * FROM SUBSCRIPTIONS WHERE TOKEN = ?";
-    private static final String ADD_SUBSCRIPTION = "INSERT INTO SUBSCRIPTIONS VALUES(?,?,?,?,?,?,?,?,?,?)";
+    private static final String ADD_SUBSCRIPTION = "INSERT INTO SUBSCRIPTIONS VALUES(?,?,?,?,?,?,?,?,?)";
     private static final String DEL_BY_TOKEN_SQL = "DELETE FROM SUBSCRIPTIONS WHERE TOKEN = ?";
 
     @Autowired
@@ -27,7 +27,6 @@ public class SubscriptionRepository {
                 subscription.getToken(),
                 subscription.getTransaction(),
                 subscription.getAccount(),
-                subscription.getSecret(),
                 subscription.getIssueDate(),
                 subscription.getExpirationDate(),
                 subscription.getPlan(),

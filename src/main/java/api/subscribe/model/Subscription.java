@@ -11,15 +11,13 @@ public class Subscription {
 
     private String account;
 
-    private String secret;
-
     private Date issueDate;
 
     private Date expirationDate;
 
     private String plan; // L1 | L2 | L3
 
-    private Integer status; // 1 - On, 0 - Off
+    private Integer status = 1; // 1 - On (default), 0 - Off
 
     private Float eosPaid;
 
@@ -48,14 +46,6 @@ public class Subscription {
 
     public void setAccount(String account) {
         this.account = account;
-    }
-
-    public String getSecret() {
-        return secret;
-    }
-
-    public void setSecret(String secret) {
-        this.secret = secret;
     }
 
     public Date getIssueDate() {

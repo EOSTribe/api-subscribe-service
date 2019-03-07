@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
-Start-Class: api.subscribe.Application
 Main-Class: org.springframework.boot.loader.JarLauncher
+Start-Class: api.subscribe.Application
 
