@@ -6,6 +6,7 @@ import api.subscribe.model.TokenRequest;
 import api.subscribe.model.Transaction;
 import api.subscribe.model.Subscription;
 import api.subscribe.repo.SubscriptionRepository;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.codehaus.jettison.json.JSONArray;
@@ -57,6 +58,7 @@ public class SubscribeController {
     private final String L1 = "L1";
     private final String L2 = "L2";
     private final String L3 = "L3";
+    private final String AGENT_NAME = "EOS Tribe API Subscribe Service";
 
     private Map<String, Integer> planCost = new HashMap<>(3);
 
@@ -75,26 +77,52 @@ public class SubscribeController {
 
     @RequestMapping(value = "/subscribe", method = RequestMethod.POST)
     @ResponseBody
-    public Token getToken(@RequestBody TokenRequest request) throws Exception {
+    public Token getToken(@RequestBody TokenRequest request) {
         String account = request.getAccount();
         String transId = request.getTransaction();
         String secret = request.getSecret();
-        //Confirm transaction:
-        JSONObject transJson = getTransaction(transId);
-        Transaction transaction = parseTransaction(transJson);
-        boolean valid = isValidTransaction(transaction, account);
-        LOGGER.info(transaction.toString() + " - valid: "+valid);
-        if(valid) {
-            String info = account + "." + secret;
-            Sha256 digest = Sha256.from(info.getBytes());
-            EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
-            Subscription subscription = createSubscription(account, transId, signature.toString(),
-                    transaction.getQuantity(), transaction.getMemo());
-            repository.add(subscription);
-            Token token = new Token(signature.toString(), subscription.getExpirationDate());
-            return token;
-        } else {
-            return new Token("Invalid token request", null);
+        try {
+            JSONObject transJson = getTransaction(transId);
+            Transaction transaction = parseTransaction(transJson);
+            boolean valid = isValidTransaction(transaction, account);
+            LOGGER.info(transaction.toString() + " - valid: " + valid);
+            if (valid) {
+                String info = account + "." + secret;
+                Sha256 digest = Sha256.from(info.getBytes());
+                EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
+                Subscription subscription = createSubscription(account, transId, signature.toString(),
+                        transaction.getQuantity(), transaction.getMemo());
+                repository.add(subscription);
+                Token token = new Token(signature.toString(),
+                        subscription.getExpirationDate(),
+                        subscription.getPlan());
+                int status = sendTokenToHaproxy(token.toString());
+                if(status != 200) {
+                    token.setPlan(token.getPlan()+": Error registering token. Contact support!");
+                }
+                return token;
+            } else {
+                LOGGER.warn("Invalid token request: " + transaction.getError());
+                return new Token("Invalid token request: " + transaction.getError(), null, null);
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("Error processing transaction: " + ex.getMessage(), ex);
+            return new Token("Error processing transaction", null, null);
+        }
+    }
+
+    private int sendTokenToHaproxy(String token) {
+        try {
+            CloseableHttpClient httpclient = HttpClients.createDefault();
+            String request = "http://api4.eostribe.io/setmap?apikey=" + token + "&sla=full";
+            HttpGet httpGet = new HttpGet(request);
+            httpGet.addHeader("User-Agent", AGENT_NAME);
+            CloseableHttpResponse httpResponse = httpclient.execute(httpGet);
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            return responseCode;
+        } catch(Exception ex) {
+            LOGGER.warn("Error sending token to Haproxy", ex);
+            return 0;
         }
     }
 
@@ -186,7 +214,7 @@ public class SubscribeController {
         se.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/json"));
         HttpPost post = new HttpPost(HISTORY_API + "/v1/history/get_transaction");
         post.setEntity(se);
-        post.addHeader("User-Agent", "EOS Tribe API Subscribe Service");
+        post.addHeader("User-Agent", AGENT_NAME);
         CloseableHttpResponse httpResponse = httpclient.execute(post);
         int responseCode = httpResponse.getStatusLine().getStatusCode();
 

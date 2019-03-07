@@ -6,11 +6,14 @@ public class Token {
 
     private final String token;
 
-    private Date expiration;
+    private final Date expiration;
 
-    public Token(String name, Date expiration) {
+    private String plan;
+
+    public Token(String name, Date expiration, String plan) {
         this.token = name;
         this.expiration = expiration;
+        this.plan = plan;
     }
 
     public String getToken() {
@@ -21,4 +24,11 @@ public class Token {
         return expiration;
     }
 
+    public String getPlan() {
+        return plan;
+    }
+
+    public void setPlan(String plan) {
+        this.plan = plan;
+    }
 }
