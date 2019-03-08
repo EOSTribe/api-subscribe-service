@@ -50,6 +50,7 @@ public class SubscribeController {
     private static Logger LOGGER = LoggerFactory.getLogger(SubscribeController.class);
 
     private String HISTORY_API;
+    private String HAPROXY_API;
     private String RECEIVER_ACCOUNT;
     private final String EOS = "EOS";
     private final Float MIN_AMOUNT = new Float(10.0F);
@@ -69,6 +70,7 @@ public class SubscribeController {
     public void setProperties(Properties properties) {
         PRIVATE_KEY = new EosPrivateKey(properties.getPrivateKey());
         HISTORY_API = properties.getHistoryApi();
+        HAPROXY_API = properties.getHaproxyApi();
         RECEIVER_ACCOUNT = properties.getReceiverAccount();
         planCost.put(L1, properties.getL1cost());
         planCost.put(L2, properties.getL2cost());
@@ -114,7 +116,7 @@ public class SubscribeController {
     private int sendTokenToHaproxy(String token) {
         try {
             CloseableHttpClient httpclient = HttpClients.createDefault();
-            String request = "http://api4.eostribe.io/setmap?apikey=" + token + "&sla=full";
+            String request = HAPROXY_API+"/setmap?apikey=" + token + "&sla=full";
             HttpGet httpGet = new HttpGet(request);
             httpGet.addHeader("User-Agent", AGENT_NAME);
             CloseableHttpResponse httpResponse = httpclient.execute(httpGet);

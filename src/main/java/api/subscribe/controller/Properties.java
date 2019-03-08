@@ -13,6 +13,9 @@ public class Properties {
     @Value("${history-api}")
     private String historyApi;
 
+    @Value("${haproxy-api}")
+    private String haproxyApi;
+
     @Value("${receiver-account}")
     private String receiverAccount;
 
@@ -31,6 +34,8 @@ public class Properties {
     public String getHistoryApi() {
         return historyApi;
     }
+
+    public String getHaproxyApi() { return haproxyApi; }
 
     public String getReceiverAccount() {
         return receiverAccount;
