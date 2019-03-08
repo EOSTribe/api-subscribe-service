@@ -79,7 +79,7 @@ public class SubscribeController {
 
     @RequestMapping(value = "/subscribe", method = RequestMethod.POST)
     @ResponseBody
-    public Token getToken(@RequestBody TokenRequest request) {
+    public Token subscribe(@RequestBody TokenRequest request) {
         String account = request.getAccount();
         String transId = request.getTransaction();
         String secret = request.getSecret();
@@ -92,9 +92,57 @@ public class SubscribeController {
                 String info = account + "." + secret;
                 Sha256 digest = Sha256.from(info.getBytes());
                 EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
-                Subscription subscription = createSubscription(account, transId, signature.toString(),
-                        transaction.getQuantity(), transaction.getMemo());
-                repository.add(subscription);
+                //Check if already exists:
+                Subscription subscription = repository.get(signature.toString());
+                if(subscription == null) {
+                    subscription = createSubscription(account, transId, signature.toString(),
+                            transaction.getQuantity(), transaction.getMemo());
+                    repository.add(subscription);
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    sendTokenToHaproxy(token.toString());
+                }
+                Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                return token;
+            } else {
+                LOGGER.warn("Invalid token request: " + transaction.getError());
+                return new Token("Invalid token request: " + transaction.getError(), null, null);
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("Error processing transaction: " + ex.getMessage(), ex);
+            return new Token("Error processing transaction", null, null);
+        }
+    }
+
+    @RequestMapping(value = "/renew", method = RequestMethod.POST)
+    @ResponseBody
+    public Token renew(@RequestBody TokenRequest request) {
+        String account = request.getAccount();
+        String transId = request.getTransaction();
+        String secret = request.getSecret();
+        try {
+            JSONObject transJson = getTransaction(transId);
+            Transaction transaction = parseTransaction(transJson);
+            boolean valid = isValidTransaction(transaction, account);
+            LOGGER.info(transaction.toString() + " - valid: " + valid);
+            if (valid) {
+                String info = account + "." + secret;
+                Sha256 digest = Sha256.from(info.getBytes());
+                EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
+                Subscription subscription = repository.get(signature.toString());
+                Float amount = transaction.getQuantity();
+                Integer cost = planCost.get(subscription.getPlan());
+                int periodHours = Math.round(24*31*(amount/cost));
+                Date today = new Date();
+                subscription.setIssueDate(today);
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(today);
+                calendar.add(Calendar.HOUR, periodHours);
+                subscription.setExpirationDate(calendar.getTime());
+                repository.renew(subscription);
                 Token token = new Token(signature.toString(),
                         subscription.getExpirationDate(),
                         subscription.getPlan());

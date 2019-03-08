@@ -12,6 +12,7 @@ public class SubscriptionRepository {
     private static final String GET_BY_TOKEN_SQL = "SELECT * FROM SUBSCRIPTIONS WHERE TOKEN = ?";
     private static final String ADD_SUBSCRIPTION = "INSERT INTO SUBSCRIPTIONS VALUES(?,?,?,?,?,?,?,?,?)";
     private static final String DEL_BY_TOKEN_SQL = "DELETE FROM SUBSCRIPTIONS WHERE TOKEN = ?";
+    private static final String RENEW_BY_TOKEN_SQL = "UPDATE SUBSCRIPTIONS SET expiration_date = ? WHERE TOKEN = ?";
 
     @Autowired
     JdbcTemplate jdbcTemplate;
@@ -33,6 +34,12 @@ public class SubscriptionRepository {
                 subscription.getStatus(),
                 subscription.getEosPaid(),
                 subscription.getMemo());
+    }
+
+    public int renew(Subscription subscription) {
+        return jdbcTemplate.update(RENEW_BY_TOKEN_SQL,
+                subscription.getExpirationDate(),
+                subscription.getToken());
     }
 
     public int delete(String token) {
