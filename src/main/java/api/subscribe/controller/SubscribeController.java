@@ -101,19 +101,25 @@ public class SubscribeController {
                     Token token = new Token(signature.toString(),
                             subscription.getExpirationDate(),
                             subscription.getPlan());
-                    sendTokenToHaproxy(token.toString());
-                }
-                Token token = new Token(signature.toString(),
+                    return registerToken(token);
+                } else {
+                    Token token = new Token(signature.toString(),
                             subscription.getExpirationDate(),
                             subscription.getPlan());
-                return token;
+                    if(isExpired(subscription)) {
+                        token.setMessage("API key exists and is expired. Call renew method instead.");
+                    } else {
+                        token.setMessage("API key already issued and active. Call renew to extend.");
+                    }
+                    return token;
+                }
             } else {
                 LOGGER.warn("Invalid token request: " + transaction.getError());
-                return new Token("Invalid token request: " + transaction.getError(), null, null);
+                return new Token("Invalid token request: " + transaction.getError());
             }
         } catch (Exception ex) {
             LOGGER.warn("Error processing transaction: " + ex.getMessage(), ex);
-            return new Token("Error processing transaction", null, null);
+            return new Token("Error processing transaction");
         }
     }
 
@@ -133,32 +139,62 @@ public class SubscribeController {
                 Sha256 digest = Sha256.from(info.getBytes());
                 EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
                 Subscription subscription = repository.get(signature.toString());
-                Float amount = transaction.getQuantity();
-                Integer cost = planCost.get(subscription.getPlan());
-                int periodHours = Math.round(24*31*(amount/cost));
-                Date today = new Date();
-                subscription.setIssueDate(today);
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTime(today);
-                calendar.add(Calendar.HOUR, periodHours);
-                subscription.setExpirationDate(calendar.getTime());
-                repository.renew(subscription);
-                Token token = new Token(signature.toString(),
-                        subscription.getExpirationDate(),
-                        subscription.getPlan());
-                int status = sendTokenToHaproxy(token.toString());
-                if(status == 0) {
-                    token.setPlan(token.getPlan()+": Error registering token. Contact support!");
+                if(subscription == null) {
+                    return new Token("Subscription not found. Nothing to renew!");
+                } else if(!subscription.getTransaction().equals(transId)) {
+                    // New transaction:
+                    Date newExpiration = calculateExpirationDate(subscription, transaction.getQuantity());
+                    subscription.setExpirationDate(newExpiration);
+                    repository.renew(subscription);
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    return registerToken(token);
+                } else { // transaction already used:
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    token.setMessage("Current transaction already used for this subscription.");
                 }
-                return token;
             } else {
                 LOGGER.warn("Invalid token request: " + transaction.getError());
-                return new Token("Invalid token request: " + transaction.getError(), null, null);
+                return new Token("Invalid token request: " + transaction.getError());
             }
         } catch (Exception ex) {
             LOGGER.warn("Error processing transaction: " + ex.getMessage(), ex);
-            return new Token("Error processing transaction", null, null);
+            return new Token("Error processing transaction");
         }
+    }
+
+    private Token registerToken(Token token) {
+        int status = sendTokenToHaproxy(token.toString());
+        if(status != 0) {
+            token.setMessage("API key issued and registered!");
+        } else {
+            token.setMessage("API key issued but failed to register - contact support!");
+        }
+        return token;
+    }
+
+    private boolean isExpired(Subscription subscription) {
+        Date expiration = subscription.getExpirationDate();
+        Date today = new Date();
+        return today.after(expiration);
+    }
+
+    private Date calculateExpirationDate(Subscription subscription, Float amount) {
+        Integer cost = planCost.get(subscription.getPlan());
+        int periodHours = Math.round(24*31*(amount/cost));
+        Date endDate = subscription.getExpirationDate();
+        // If already expired - set end date to today:
+        if(isExpired(subscription)) {
+            endDate = new Date();
+        }
+        subscription.setIssueDate(endDate);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(endDate);
+        calendar.add(Calendar.HOUR, periodHours);
+        return calendar.getTime();
     }
 
     private int sendTokenToHaproxy(String token) {
