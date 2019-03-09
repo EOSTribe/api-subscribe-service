@@ -155,6 +155,7 @@ public class SubscribeController {
                             subscription.getExpirationDate(),
                             subscription.getPlan());
                     token.setMessage("Current transaction already used for this subscription.");
+                    return token;
                 }
             } else {
                 LOGGER.warn("Invalid token request: " + transaction.getError());
