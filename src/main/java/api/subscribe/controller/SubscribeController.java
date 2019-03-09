@@ -143,6 +143,9 @@ public class SubscribeController {
                     return new Token("Subscription not found. Nothing to renew!");
                 } else if(!subscription.getTransaction().equals(transId)) {
                     // New transaction:
+                    String newPlan = getPlanFromMemo(transaction.getMemo());
+                    subscription.setPlan(newPlan);
+                    subscription.setTransaction(transId);
                     Date newExpiration = calculateExpirationDate(subscription, transaction.getQuantity());
                     subscription.setExpirationDate(newExpiration);
                     repository.renew(subscription);
@@ -225,12 +228,7 @@ public class SubscribeController {
         subscription.setEosPaid(amount);
         subscription.setMemo(memo);
         subscription.setStatus(1);
-        String plan = L1;
-        if(memo.contains(L3)) {
-            plan = L3;
-        } else if(memo.contains(L2)) {
-            plan = L2;
-        }
+        String plan = getPlanFromMemo(memo);
         subscription.setPlan(plan);
         Integer cost = planCost.get(plan);
         int periodHours = Math.round(24*31*(amount/cost));
@@ -241,6 +239,16 @@ public class SubscribeController {
         calendar.add(Calendar.HOUR, periodHours);
         subscription.setExpirationDate(calendar.getTime());
         return subscription;
+    }
+
+    private String getPlanFromMemo(String memo) {
+        String plan = L1;
+        if(memo.contains(L3)) {
+            plan = L3;
+        } else if(memo.contains(L2)) {
+            plan = L2;
+        }
+        return plan;
     }
 
     private boolean isValidTransaction(Transaction transaction, String account) {
