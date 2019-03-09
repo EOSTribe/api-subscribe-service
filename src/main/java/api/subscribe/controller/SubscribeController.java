@@ -92,9 +92,11 @@ public class SubscribeController {
                 String info = account + "." + secret;
                 Sha256 digest = Sha256.from(info.getBytes());
                 EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
+                LOGGER.info("Signature calculated: "+signature.toString()+" for account "+account);
                 //Check if already exists:
                 Subscription subscription = repository.get(signature.toString());
                 if(subscription == null) {
+                    LOGGER.info("Subscription for signature "+signature.toString()+" not found!");
                     subscription = createSubscription(account, transId, signature.toString(),
                             transaction.getQuantity(), transaction.getMemo());
                     repository.add(subscription);
@@ -103,6 +105,7 @@ public class SubscribeController {
                             subscription.getPlan());
                     return registerToken(token);
                 } else {
+                    LOGGER.info("Subscription found for token: "+signature.toString());
                     Token token = new Token(signature.toString(),
                             subscription.getExpirationDate(),
                             subscription.getPlan());
