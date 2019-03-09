@@ -1,7 +1,7 @@
 create database API;
 use API;
 
-CREATE TABLE IF NOT EXISTS subscriptions (
+CREATE TABLE IF NOT EXISTS SUBSCRIPTIONS (
     token VARCHAR(255) NOT NULL,
     transaction VARCHAR(255) NOT NULL,
     account VARCHAR(12) NOT NULL,

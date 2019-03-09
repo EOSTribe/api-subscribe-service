@@ -10,11 +10,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class SubscriptionRepository {
 
-    private static final String COUNT_BY_TOKEN_SQL = "SELECT COUNT(token) FROM SUBSCRIPTIONS WHERE TOKEN = ?";
-    private static final String GET_BY_TOKEN_SQL = "SELECT * FROM SUBSCRIPTIONS WHERE TOKEN = ?";
+    private static final String COUNT_BY_TOKEN_SQL = "SELECT COUNT(token) FROM SUBSCRIPTIONS WHERE token = ?";
+    private static final String GET_BY_TOKEN_SQL = "SELECT * FROM SUBSCRIPTIONS WHERE token = ?";
     private static final String ADD_SUBSCRIPTION = "INSERT INTO SUBSCRIPTIONS VALUES(?,?,?,?,?,?,?,?,?)";
-    private static final String DEL_BY_TOKEN_SQL = "DELETE FROM SUBSCRIPTIONS WHERE TOKEN = ?";
-    private static final String RENEW_BY_TOKEN_SQL = "UPDATE SUBSCRIPTIONS SET transaction = ?, plan = ?, expiration_date = ? WHERE TOKEN = ?";
+    private static final String DEL_BY_TOKEN_SQL = "DELETE FROM SUBSCRIPTIONS WHERE token = ?";
+    private static final String RENEW_BY_TOKEN_SQL = "UPDATE SUBSCRIPTIONS SET transaction = ?, plan = ?, expiration_date = ? WHERE token = ?";
 
     @Autowired
     JdbcTemplate jdbcTemplate;
