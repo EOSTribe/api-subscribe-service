@@ -8,12 +8,23 @@ public class Token {
 
     private final Date expiration;
 
-    private String plan;
+    private final String plan;
+
+    private String message;
+
 
     public Token(String name, Date expiration, String plan) {
         this.token = name;
         this.expiration = expiration;
         this.plan = plan;
+        this.message = "";
+    }
+
+    public Token(String message) {
+        this.token = "N/A";
+        this.expiration = new Date();
+        this.plan = "N/A";
+        this.message = message;
     }
 
     public String getToken() {
@@ -28,7 +39,11 @@ public class Token {
         return plan;
     }
 
-    public void setPlan(String plan) {
-        this.plan = plan;
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 }

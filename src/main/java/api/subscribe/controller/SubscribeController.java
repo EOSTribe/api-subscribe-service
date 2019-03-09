@@ -79,7 +79,7 @@ public class SubscribeController {
 
     @RequestMapping(value = "/subscribe", method = RequestMethod.POST)
     @ResponseBody
-    public Token getToken(@RequestBody TokenRequest request) {
+    public Token subscribe(@RequestBody TokenRequest request) {
         String account = request.getAccount();
         String transId = request.getTransaction();
         String secret = request.getSecret();
@@ -92,25 +92,109 @@ public class SubscribeController {
                 String info = account + "." + secret;
                 Sha256 digest = Sha256.from(info.getBytes());
                 EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
-                Subscription subscription = createSubscription(account, transId, signature.toString(),
-                        transaction.getQuantity(), transaction.getMemo());
-                repository.add(subscription);
-                Token token = new Token(signature.toString(),
-                        subscription.getExpirationDate(),
-                        subscription.getPlan());
-                int status = sendTokenToHaproxy(token.toString());
-                if(status == 0) {
-                    token.setPlan(token.getPlan()+": Error registering token. Contact support!");
+                //Check if already exists:
+                Subscription subscription = repository.get(signature.toString());
+                if(subscription == null) {
+                    subscription = createSubscription(account, transId, signature.toString(),
+                            transaction.getQuantity(), transaction.getMemo());
+                    repository.add(subscription);
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    return registerToken(token);
+                } else {
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    if(isExpired(subscription)) {
+                        token.setMessage("API key exists and is expired. Call renew method instead.");
+                    } else {
+                        token.setMessage("API key already issued and active. Call renew to extend.");
+                    }
+                    return token;
                 }
-                return token;
             } else {
                 LOGGER.warn("Invalid token request: " + transaction.getError());
-                return new Token("Invalid token request: " + transaction.getError(), null, null);
+                return new Token("Invalid token request: " + transaction.getError());
             }
         } catch (Exception ex) {
             LOGGER.warn("Error processing transaction: " + ex.getMessage(), ex);
-            return new Token("Error processing transaction", null, null);
+            return new Token("Error processing transaction");
         }
+    }
+
+    @RequestMapping(value = "/renew", method = RequestMethod.POST)
+    @ResponseBody
+    public Token renew(@RequestBody TokenRequest request) {
+        String account = request.getAccount();
+        String transId = request.getTransaction();
+        String secret = request.getSecret();
+        try {
+            JSONObject transJson = getTransaction(transId);
+            Transaction transaction = parseTransaction(transJson);
+            boolean valid = isValidTransaction(transaction, account);
+            LOGGER.info(transaction.toString() + " - valid: " + valid);
+            if (valid) {
+                String info = account + "." + secret;
+                Sha256 digest = Sha256.from(info.getBytes());
+                EcSignature signature = EcDsa.sign(digest, PRIVATE_KEY);
+                Subscription subscription = repository.get(signature.toString());
+                if(subscription == null) {
+                    return new Token("Subscription not found. Nothing to renew!");
+                } else if(!subscription.getTransaction().equals(transId)) {
+                    // New transaction:
+                    Date newExpiration = calculateExpirationDate(subscription, transaction.getQuantity());
+                    subscription.setExpirationDate(newExpiration);
+                    repository.renew(subscription);
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    return registerToken(token);
+                } else { // transaction already used:
+                    Token token = new Token(signature.toString(),
+                            subscription.getExpirationDate(),
+                            subscription.getPlan());
+                    token.setMessage("Current transaction already used for this subscription.");
+                }
+            } else {
+                LOGGER.warn("Invalid token request: " + transaction.getError());
+                return new Token("Invalid token request: " + transaction.getError());
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("Error processing transaction: " + ex.getMessage(), ex);
+            return new Token("Error processing transaction");
+        }
+    }
+
+    private Token registerToken(Token token) {
+        int status = sendTokenToHaproxy(token.toString());
+        if(status != 0) {
+            token.setMessage("API key issued and registered!");
+        } else {
+            token.setMessage("API key issued but failed to register - contact support!");
+        }
+        return token;
+    }
+
+    private boolean isExpired(Subscription subscription) {
+        Date expiration = subscription.getExpirationDate();
+        Date today = new Date();
+        return today.after(expiration);
+    }
+
+    private Date calculateExpirationDate(Subscription subscription, Float amount) {
+        Integer cost = planCost.get(subscription.getPlan());
+        int periodHours = Math.round(24*31*(amount/cost));
+        Date endDate = subscription.getExpirationDate();
+        // If already expired - set end date to today:
+        if(isExpired(subscription)) {
+            endDate = new Date();
+        }
+        subscription.setIssueDate(endDate);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(endDate);
+        calendar.add(Calendar.HOUR, periodHours);
+        return calendar.getTime();
     }
 
     private int sendTokenToHaproxy(String token) {
