@@ -3,7 +3,7 @@ services:
   token_management:
     build: ./map_management
     ports:
-        - "7804:8000"
+        - "127.0.0.1:7804:8000"
     restart: on-failure
     volumes:
         - .:/src
