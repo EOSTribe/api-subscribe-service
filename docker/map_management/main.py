@@ -51,9 +51,9 @@ def remove_apikey(apikey):
                 else:
                     target_file.write(line)
     os.remove(subscriber_map_filename)
-    os.rename(target_file_path, subscriber_map_filename)
     move(target_file_path, subscriber_map_filename)
     os.chmod(subscriber_map_filename, 0o644)
+
 
 
 
