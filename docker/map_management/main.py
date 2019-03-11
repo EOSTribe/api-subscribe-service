@@ -4,7 +4,7 @@ import os
 from shutil import move
 
 app = Flask(__name__)
-subscriber_map_filename = '/etc/haproxy/maps/subscriber.map'
+subscriber_map_filename = '/etc/haproxy/maps/subscribers.map'
 
 @app.route('/setmap', methods=['POST','OPTIONS','GET'])
 def setmap():
